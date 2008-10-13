@@ -26,6 +26,7 @@
   
     Danny Couture
     Software Architect
+    mailto:zerk666@gmail.com
 */
 using System;
 using System.Collections.Generic;
@@ -37,7 +38,7 @@ namespace NtfsReaderSample
 {
     class Program
     {
-        #region AnalyzeSimilarity
+        #region Analyze Similarity
 
         /// <summary>
         /// Find similar files by grouping those of the exact same size together.
@@ -144,6 +145,23 @@ namespace NtfsReaderSample
 
             IEnumerable<INode> nodes =
                 ntfsReader.GetNodes(driveToAnalyze.Name);
+
+            int directoryCount = 0, fileCount = 0;
+            foreach (INode node in nodes)
+            {
+                if ((node.Attributes & Attributes.Directory) != 0)
+                    directoryCount++;
+                else
+                    fileCount++;
+            }
+
+            Console.WriteLine(
+                string.Format(
+                    "Directory Count: {0}, File Count {1}",
+                    directoryCount,
+                    fileCount
+                )
+            );
 
             AnalyzeFragmentation(nodes, driveToAnalyze);
 
