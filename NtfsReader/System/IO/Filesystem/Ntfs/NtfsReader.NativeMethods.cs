@@ -1,5 +1,4 @@
-﻿using System.Runtime.InteropServices;
-/*
+﻿/*
     The NtfsReader library.
 
     Copyright (C) 2008 Danny Couture
@@ -27,9 +26,11 @@
   
     Danny Couture
     Software Architect
+    mailto:zerk666@gmail.com
 */
 using System.Text;
 using Microsoft.Win32.SafeHandles;
+using System.Runtime.InteropServices;
 
 namespace System.IO.Filesystem.Ntfs
 {

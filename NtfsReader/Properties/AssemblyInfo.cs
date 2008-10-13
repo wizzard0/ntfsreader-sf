@@ -18,9 +18,15 @@
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
   
     For the full text of the license see the "License.txt" file.
+
+    This library is based on the work of Jeroen Kessels, Author of JkDefrag.
+    http://www.kessels.com/Jkdefrag/
+    
+    Special thanks goes to him.
   
     Danny Couture
     Software Architect
+    mailto:zerk666@gmail.com
 */
 using System.Reflection;
 using System.Runtime.CompilerServices;
