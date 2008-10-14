@@ -31,6 +31,7 @@
 using System.Text;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 
 namespace System.IO.Filesystem.Ntfs
 {
@@ -89,6 +90,105 @@ namespace System.IO.Filesystem.Ntfs
                 privateLow = IntPtr.Zero;
                 privateHigh = IntPtr.Zero;
             }
+        }
+
+        private enum NetworkShareType : uint
+        {
+            DiskTree = 0,
+            Printer = 1,
+            Device = 2,
+            IPC = 3,
+            Special = 0x80000000,
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        private struct NetworkShare
+        {
+            public string NetworkName;
+            public NetworkShareType Type;
+            public string Remark;
+            public SharePermissions Permissions;
+            public uint MaxUses;
+            public uint Currentuses;
+            public string LocalPath;
+            public string Password;
+        }
+
+        [Flags]
+        private enum SharePermissions
+        {
+            None = 0,
+            Read = 1,
+            Write = 2,
+            Create = 4,
+            Exec = 8,
+            Delete = 16,
+            Atrib = 32,
+            Perm = 64,
+            All = Read | Write | Create | Exec | Delete | Atrib | Perm,
+            Group = 0x8000
+        }
+        
+        private enum NetworkResult : uint
+        {
+            Success = 0,
+            UnknownDevDir = 2116,
+            DuplicateShare = 2118,
+            BufTooSmall = 2123,
+        }
+
+        [DllImport("netapi32", CharSet = CharSet.Unicode)]
+        private static extern int NetShareEnum(
+             StringBuilder serverName,
+             int level,
+             ref IntPtr bufPtr,
+             uint prefMaxLen,
+             ref int entriesRead,
+             ref int totalEntries,
+             ref int resumeHandle
+             );
+
+        [DllImport("netapi32")]
+        private static extern void NetApiBufferFree(IntPtr buffer);
+
+        [DllImport("mpr", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern int WNetGetConnection(string localName, StringBuilder remoteName, ref int length);
+
+        /// <summary>
+        /// Enum the share on the local machine
+        /// </summary>
+        private unsafe static NetworkShare[] EnumNetShares()
+        {
+            const uint MAX_PREFERRED_LENGTH = 0xFFFFFFFF;
+
+            List<NetworkShare> networkShares = new List<NetworkShare>();
+            
+            int entriesRead = 0, totalEntries = 0, resumeHandle = 0;
+            int structSize = Marshal.SizeOf(typeof(NetworkShare));
+            
+            StringBuilder server = new StringBuilder(Environment.MachineName);
+
+            IntPtr bufPtr = IntPtr.Zero;
+
+            NetworkResult result =
+                (NetworkResult)NetShareEnum(
+                    server, 
+                    2,
+                    ref bufPtr, 
+                    MAX_PREFERRED_LENGTH, 
+                    ref entriesRead, 
+                    ref totalEntries,
+                    ref resumeHandle
+                    );
+
+            if (result != NetworkResult.Success)
+                throw new Exception("Unable to enumerate share folders on local computer");
+
+            for (int i = 0; i < entriesRead; i++)
+                networkShares.Add((NetworkShare)Marshal.PtrToStructure((IntPtr)((uint)bufPtr + structSize * i), typeof(NetworkShare)));
+
+            NetApiBufferFree(bufPtr);
+            return networkShares.ToArray();
         }
     }
 }

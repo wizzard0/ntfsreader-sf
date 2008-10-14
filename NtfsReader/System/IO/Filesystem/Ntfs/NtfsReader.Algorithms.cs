@@ -65,17 +65,23 @@ namespace System.IO.Filesystem.Ntfs
             }
 
             StringBuilder fullPath = new StringBuilder();
-            fullPath.Append(_driveInfo.Name.TrimEnd(new char[] { '\\' }));
+            fullPath.Append(_rootPath);
 
             while (fullPathNodes.Count > 0)
             {
                 node = fullPathNodes.Pop();
 
-                fullPath.Append(@"\");
                 fullPath.Append(GetNameFromIndex(_nodes[node].NameIndex));
+                
+                if (fullPathNodes.Count > 0)
+                    fullPath.Append(@"\");
             }
 
-            return fullPath.ToString();
+            string path = fullPath.ToString();
+            if (path.StartsWith(_locallyMappedDriveRootPath, StringComparison.OrdinalIgnoreCase))
+                path = Path.Combine(_driveInfo.Name, path.Substring(_locallyMappedDriveRootPath.Length).TrimStart(new char[] { '\\' }));
+
+            return path;
         }
     }
 }
