@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
+using System.Text;
 
 namespace System.IO.Filesystem.Ntfs
 {
@@ -574,6 +575,11 @@ namespace System.IO.Filesystem.Ntfs
 
         #endregion
 
+        //we support map drive that are mapped on a local fixed disk
+        //we will resolve the fixed drive and automatically fix paths
+        //so everything should be transparent
+        string _locallyMappedDriveRootPath;
+        string _rootPath;
         SafeFileHandle _volumeHandle;
         DiskInfoWrapper _diskInfo;
         Node[] _nodes;
@@ -605,6 +611,46 @@ namespace System.IO.Filesystem.Ntfs
         #endregion
 
         #region Helpers
+
+        /// <summary>
+        /// Try to resolve map drive if it points to a local volume.
+        /// </summary>
+        /// <param name="driveInfo"></param>
+        /// <returns></returns>
+        private DriveInfo ResolveLocalMapDrive(DriveInfo driveInfo)
+        {
+            StringBuilder remoteNameBuilder = new StringBuilder(2048);
+            int len = remoteNameBuilder.MaxCapacity;
+
+            //get the address on which the map drive is pointing
+            WNetGetConnection(driveInfo.Name.TrimEnd(new char[] { '\\' }), remoteNameBuilder, ref len);
+
+            string remoteName = remoteNameBuilder.ToString();
+            if (string.IsNullOrEmpty(remoteName))
+                throw new Exception("The drive is neither a local drive nor a locally mapped network drive, can't open volume.");
+
+            //by getting all network shares on the local computer
+            //we will be able to compare them with the remote address we found earlier.
+            NetworkShare[] networkShares = EnumNetShares();
+
+            for (int i = 0; i < networkShares.Length; ++i)
+            {
+                string networkShare =
+                    string.Format(@"\\{0}\{1}", Environment.MachineName, networkShares[i].NetworkName);
+
+                if (string.Equals(remoteName, networkShare, StringComparison.OrdinalIgnoreCase) &&
+                    Directory.Exists(networkShares[i].LocalPath))
+                {
+                    _locallyMappedDriveRootPath = networkShares[i].LocalPath;
+                    break;
+                }
+            }
+
+            if (_locallyMappedDriveRootPath == null)
+                throw new Exception("The drive is neither a local drive nor a locally mapped network drive, can't open volume.");
+
+            return new DriveInfo(Path.GetPathRoot(_locallyMappedDriveRootPath));
+        }
 
         /// <summary>
         /// Allocate or retrieve an existing index for the particular string.

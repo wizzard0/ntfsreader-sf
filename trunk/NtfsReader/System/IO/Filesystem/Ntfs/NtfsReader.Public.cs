@@ -55,11 +55,19 @@ namespace System.IO.Filesystem.Ntfs
             if (driveInfo == null)
                 throw new ArgumentNullException("driveInfo");
 
-            _driveInfo = driveInfo;
-            _retrieveMode = retrieveMode;
+            DriveInfo tmpDriveInfo = driveInfo;
+
+            //try to find if the drive is mapped on a local volume
+            if (driveInfo.DriveType != DriveType.Fixed)
+                tmpDriveInfo = ResolveLocalMapDrive(driveInfo);
+
+            _rootPath = tmpDriveInfo.Name;
 
             StringBuilder builder = new StringBuilder(1024);
-            GetVolumeNameForVolumeMountPoint(_driveInfo.RootDirectory.Name, builder, builder.Capacity);
+            GetVolumeNameForVolumeMountPoint(tmpDriveInfo.RootDirectory.Name, builder, builder.Capacity);
+
+            _driveInfo = driveInfo;
+            _retrieveMode = retrieveMode;
 
             string volume = builder.ToString().TrimEnd(new char[] { '\\' });
 
@@ -96,9 +104,32 @@ namespace System.IO.Filesystem.Ntfs
             GC.Collect();
         }
 
+        /// <summary>
+        /// Get the drive on which this instance is bound to.
+        /// </summary>
+        public DriveInfo DriveInfo
+        {
+            get { return _driveInfo; }
+        }
+
+        /// <summary>
+        /// Get information about the NTFS volume.
+        /// </summary>
         public IDiskInfo DiskInfo
         {
             get { return _diskInfo; }
+        }
+
+        /// <summary>
+        /// Get a single node that match exactly the given path
+        /// </summary>
+        public INode GetNode(string fullPath)
+        {
+            foreach (INode node in GetNodes(fullPath))
+                if (string.Equals(node.FullName, fullPath, StringComparison.OrdinalIgnoreCase))
+                    return node;
+
+            return null;
         }
 
         /// <summary>
