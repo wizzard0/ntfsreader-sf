@@ -78,8 +78,9 @@ namespace System.IO.Filesystem.Ntfs
             }
 
             string path = fullPath.ToString();
-            if (path.StartsWith(_locallyMappedDriveRootPath, StringComparison.OrdinalIgnoreCase))
-                path = Path.Combine(_driveInfo.Name, path.Substring(_locallyMappedDriveRootPath.Length).TrimStart(new char[] { '\\' }));
+            if (_locallyMappedDriveRootPath != null)
+                if (path.StartsWith(_locallyMappedDriveRootPath, StringComparison.OrdinalIgnoreCase))
+                    path = Path.Combine(_driveInfo.Name, path.Substring(_locallyMappedDriveRootPath.Length).TrimStart(new char[] { '\\' }));
 
             return path;
         }
