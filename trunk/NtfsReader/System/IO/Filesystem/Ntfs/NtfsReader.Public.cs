@@ -90,16 +90,12 @@ namespace System.IO.Filesystem.Ntfs
                     )
                 );
 
-            using (_volumeHandle)
-            {
-                InitializeDiskInfo();
+            InitializeDiskInfo();
 
-                _nodes = ProcessMft();
-            }
+            _nodes = ProcessMft();
 
             //cleanup anything that isn't used anymore
             _nameIndex = null;
-            _volumeHandle = null;
 
             GC.Collect();
         }
@@ -161,6 +157,44 @@ namespace System.IO.Filesystem.Ntfs
             );
 
             return nodes;
+        }
+
+        public unsafe byte[] ReadFile(INode node)
+        {
+            UInt64 bytesToRead = node.Size;
+
+            UInt64 bytesPerCluster = (UInt64)_diskInfo.BytesPerSector * _diskInfo.SectorsPerCluster;
+
+            if (bytesToRead % bytesPerCluster > 0)
+                bytesToRead += bytesPerCluster - (bytesToRead % bytesPerCluster);
+
+            byte[] bitmapData = new byte[bytesToRead];
+
+            fixed (byte* bitmapDataPtr = bitmapData)
+            {
+                UInt64 vcn = 0;
+                UInt64 offset = 0;
+
+                foreach (IFragment fragment in node.Streams[0].Fragments)
+                {
+                    if (fragment.Lcn != VIRTUALFRAGMENT)
+                    {
+                        UInt64 sizeToRead = (fragment.NextVcn - vcn) * bytesPerCluster;
+
+                        ReadFile(
+                            bitmapDataPtr + offset,
+                            sizeToRead,
+                            fragment.Lcn * bytesPerCluster
+                            );
+
+                        offset += sizeToRead;
+                    }
+
+                    vcn = fragment.NextVcn;
+                }
+            }
+
+            return bitmapData;
         }
 
         public byte[] GetVolumeBitmap()
